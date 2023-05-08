@@ -1,64 +1,83 @@
 using System;
-using System.Collections.Generic;
-using System. Data;
-namespace Console_DataSet
+using System.Data;
+using System.Data.SqlClient;
+namespace Microsoft.AdoNet.DataSetDemo
 {
-  class Program
-  {
-  static void Main(string[] args)
-    { 
-  try
-    { // building the EmployeeDetails table using DataTable
-        DataTable EmployeeDetails = new DataTable("EmployeeDetails");
-        //to create the column and schema
-        DataColumn EmployeeID = new DataColumn("EmpID", typeof(Int32));
-        EmployeeDetails.Columns.Add(EmployeeID);
-        DataColumn EmployeeName = new DataColumn("EmpName", typeof(string));
-        EmployeeDetails.Columns.Add(EmployeeName);
-        DataColumn EmployeeMobile = new DataColumn("EmpMobile", typeof(string));
-        EmployeeDetails.Columns.Add(EmployeeMobile);
-        //to add the Data rows into the EmployeeDetails table
-        EmployeeDetails.Rows.Add(1001, "Andrew", "9000322579");
-        EmployeeDetails.Rows.Add(1002, "Briddan", "9081223457");
-        // to create one more table SalaryDetails
-        DataTable SalaryDetails = new DataTable("SalaryDetails");
-        //to create the column and schema
-        DataColumn SalaryId = new DataColumn("SalaryID", typeof(Int32));
-        SalaryDetails.Columns.Add(SalaryId);
-        DataColumn empId = new DataColumn("EmployeeID", typeof(Int32));
-        SalaryDetails.Columns.Add(empId);
-        DataColumn empName = new DataColumn("EmployeeName", typeof(string));
-        SalaryDetails.Columns.Add(empName);
-        DataColumn SalaryPaid = new DataColumn("Salary", typeof(Int32));
-        SalaryDetails.Columns.Add(SalaryPaid);
-        //to add the Data rows into the SalaryDetails table
-        SalaryDetails.Rows.Add(10001, 1001, "Andrew",42000);
-        SalaryDetails.Rows.Add(10002, 1002, "Briddan",30000);
-        //to create the object for DataSet
-        DataSet dataSet = new DataSet();
-        //Adding DataTables into DataSet
-        dataSet.Tables.Add(EmployeeDetails);
-        dataSet.Tables.Add(SalaryDetails);
-        Console.WriteLine("\n\n\tUSING DATASET");
-        Console.WriteLine("\n\nEmployeeDetails Table Data: \n");
-        //to reterieve the DataTable from dataset using the Index position
-        foreach (DataRow row in dataSet.Tables[0].Rows)
-        {
-          Console.WriteLine(row["EmpID"] + ", " + row["EmpName"] + ", " + row["EmpMobile"]);
-        }
-        Console.WriteLine();
-        //SalaryDetails Table
-        Console.WriteLine("\nOrderDetails Table Data: \n");
-        //retrieving DataTable from the DataSet using name of the table
-        foreach (DataRow row in dataSet.Tables["SalaryDetails"].Rows)
-        {
-          Console.WriteLine(row["SalaryID"] + ", " + row["EmployeeID"] + ", " + row["EmployeeName"] + ", " + row["Salary"]);
-        }
-     }
-    catch (Exception e)
+    class NorthwindDataSet
     {
-      Console.WriteLine("OOPS, Error.\n" + e);
-    } Console.ReadKey();
-   }
-  }
+        static void Main()
+        {
+            string connectionString = GetConnectionString();
+            ConnectToData(connectionString);
+        }
+
+        private static void ConnectToData(string connectionString)
+        {
+            //Create a SqlConnection to the Northwind database.
+            using (SqlConnection connection =
+                       new SqlConnection(connectionString))
+            {
+                //Create a SqlDataAdapter for the Suppliers table.
+                SqlDataAdapter adapter = new SqlDataAdapter();
+
+                // A table mapping names the DataTable.
+                adapter.TableMappings.Add("Table", "Suppliers");
+
+                // Open the connection.
+                connection.Open();
+                Console.WriteLine("The SqlConnection is open.");
+
+                // Create a SqlCommand to retrieve Suppliers data.
+                SqlCommand command = new SqlCommand(
+                    "SELECT SupplierID, CompanyName FROM dbo.Suppliers;",
+                    connection);
+                command.CommandType = CommandType.Text;
+
+                // Set the SqlDataAdapter's SelectCommand.
+                adapter.SelectCommand = command;
+
+                // Fill the DataSet.
+                DataSet dataSet = new DataSet("Suppliers");
+                adapter.Fill(dataSet);
+
+                // Create a second Adapter and Command to get
+                // the Products table, a child table of Suppliers.
+                SqlDataAdapter productsAdapter = new SqlDataAdapter();
+                productsAdapter.TableMappings.Add("Table", "Products");
+
+                SqlCommand productsCommand = new SqlCommand(
+                    "SELECT ProductID, SupplierID FROM dbo.Products;",
+                    connection);
+                productsAdapter.SelectCommand = productsCommand;
+
+                // Fill the DataSet.
+                productsAdapter.Fill(dataSet);
+
+                // Close the connection.
+                connection.Close();
+                Console.WriteLine("The SqlConnection is closed.");
+
+                // Create a DataRelation to link the two tables
+                // based on the SupplierID.
+                DataColumn parentColumn =
+                    dataSet.Tables["Suppliers"].Columns["SupplierID"];
+                DataColumn childColumn =
+                    dataSet.Tables["Products"].Columns["SupplierID"];
+                DataRelation relation =
+                    new System.Data.DataRelation("SuppliersProducts",
+                    parentColumn, childColumn);
+                dataSet.Relations.Add(relation);
+                Console.WriteLine(
+                    "The {0} DataRelation has been created.",
+                    relation.RelationName);
+            }
+        }
+        static private string GetConnectionString()
+        {
+            // To avoid storing the connection string in your code,
+            // you can retrieve it from a configuration file.
+            return "Data Source=(local);Initial Catalog=Northwind;"
+                + "Integrated Security=SSPI";
+        }
+    }
 }
